@@ -102,7 +102,7 @@ func (d *Database) createTables() error {
 		shipping_address_city VARCHAR(255),
 		shipping_address_state VARCHAR(255),
 		shipping_address_country VARCHAR(255),
-		shipping_address_zip_code VARCHAR(20),
+		shipping_address_zip_code INTEGER,
 		created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		INDEX idx_user_id (user_id),
 		INDEX idx_created_at (created_at)
@@ -152,7 +152,8 @@ func (d *Database) SaveOrder(ctx context.Context, orderResult *pb.OrderResult, u
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 	`
 
-	var shippingStreet, shippingCity, shippingState, shippingCountry, shippingZip string
+	var shippingStreet, shippingCity, shippingState, shippingCountry string
+	var shippingZip int32
 	if orderResult.ShippingAddress != nil {
 		shippingStreet = orderResult.ShippingAddress.StreetAddress
 		shippingCity = orderResult.ShippingAddress.City
