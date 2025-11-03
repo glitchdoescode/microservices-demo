@@ -81,6 +81,8 @@ type checkoutService struct {
 
 	paymentSvcAddr string
 	paymentSvcConn *grpc.ClientConn
+
+	db *Database
 }
 
 func main() {
@@ -119,6 +121,17 @@ func main() {
 	mustConnGRPC(ctx, &svc.currencySvcConn, svc.currencySvcAddr)
 	mustConnGRPC(ctx, &svc.emailSvcConn, svc.emailSvcAddr)
 	mustConnGRPC(ctx, &svc.paymentSvcConn, svc.paymentSvcAddr)
+
+	// Initialize PostgreSQL database for order persistence
+	db, err := InitDatabase()
+	if err != nil {
+		log.Warnf("Failed to initialize database (orders will not be persisted): %v", err)
+		svc.db = nil
+	} else {
+		svc.db = db
+		log.Info("Database initialized successfully - order persistence enabled")
+		defer db.Close()
+	}
 
 	log.Infof("service config: %+v", svc)
 
@@ -274,6 +287,16 @@ func (cs *checkoutService) PlaceOrder(ctx context.Context, req *pb.PlaceOrderReq
 	} else {
 		log.Infof("order confirmation email sent to %q", req.Email)
 	}
+
+	// Save order to PostgreSQL database if connection is available
+	if cs.db != nil {
+		if err := cs.db.SaveOrder(ctx, orderResult, req.Email, req.UserId); err != nil {
+			log.Warnf("failed to save order to database: %+v", err)
+		} else {
+			log.Infof("order %s saved to database successfully", orderResult.OrderId)
+		}
+	}
+
 	resp := &pb.PlaceOrderResponse{Order: orderResult}
 	return resp, nil
 }
